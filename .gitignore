@@ -1,1 +1,5 @@
-./build/
+build/main.bin
+
+build/os-disk.bin
+
+build/shell.bin
