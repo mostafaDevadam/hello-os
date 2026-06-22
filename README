@@ -13,3 +13,18 @@ make
 
 # run
 qemu-system-x86_64 -fda build/main_floppy.img
+
+# from branch: asm-shell
+
+It's support German and English keyboard
+
+# remove old image
+rm -rf build/*.bin build/*.img
+
+# build
+make
+
+
+# run
+qemu-system-x86_64 -fda build/shell_floppy.img
+
