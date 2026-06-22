@@ -8,8 +8,16 @@ sudo apt install make asm qemu-system-x86_64
 
 # In Terminal
 
+
+
 # build
 make
 
 # run
 qemu-system-x86_64 -fda build/main_floppy.img
+
+# re-build
+rm ./build/main.bin ./build/main_floppy.img 
+make
+qemu-system-x86_64 -fda build/main_floppy.img
+
