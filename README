@@ -28,3 +28,9 @@ make
 # run
 qemu-system-x86_64 -fda build/shell_floppy.img
 
+after updated asm-shell
+
+# run
+make clean && make
+
+qemu-system-x86_64 -fda build/os_disk.img
