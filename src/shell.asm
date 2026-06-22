@@ -161,12 +161,30 @@ execute_command:
     call strcmp_insensitive
     je do_config
 
+
+    
+
+  
+
+
+
     mov si, msg_unknown
     call puts
     jmp clear_and_repeat
 
+    
+
+
+
+;do_cool:
+;    mov si, msg_cool_message    ; SI points to the message string
+;    call puts                   ; Print the message
+;    jmp clear_and_repeat  
+
 do_help:
-    mov si, msg_help_text
+    mov si, msg_help_header
+    call puts
+    mov si, msg_help_list
     call puts
     jmp clear_and_repeat
 
@@ -250,7 +268,7 @@ do_config:
     mov si, msg_menu_sz_medium
 .print_2:
     call puts
-    jmp .wait_input
+    jmp .render_buttons
 .active_2:
     mov si, msg_menu_act_sz_small
     cmp byte [font_size_flag], 1
@@ -261,6 +279,37 @@ do_config:
     mov si, msg_menu_act_sz_medium
 .print_act_2:
     call puts
+
+.render_buttons:
+    ; Add two blank lines before buttons
+    mov si, msg_spacer
+    call puts
+    mov si, msg_spacer
+    call puts
+    
+    ; --- Print both buttons on the SAME LINE using direct character output ---
+    
+    ; First, position cursor at row 22, column 0
+    mov ah, 0x02    ; Set cursor position
+    mov bh, 0        ; Page 0
+    mov dh, 22       ; Row 22
+    mov dl, 0        ; Column 0
+    int 0x10
+    
+    ; Print BACK button string without newline
+    mov si, msg_back_btn
+    call puts_no_newline
+    
+    ; Now position cursor at row 22, column 55 for FINISH button
+    mov ah, 0x02    ; Set cursor position
+    mov bh, 0        ; Page 0
+    mov dh, 22       ; Row 22 (SAME ROW!)
+    mov dl, 55       ; Column 55
+    int 0x10
+    
+    ; Print FINISH button string without newline
+    mov si, msg_finish_btn
+    call puts_no_newline
 
 .wait_input:
     call getc       
@@ -276,6 +325,18 @@ do_config:
 
     cmp ah, 0x50    ; PFEILTASTE RUNTER?
     je .move_down
+    
+    ; Check for 'B' or 'b' for BACK
+    cmp al, 'B'
+    je .exit_menu
+    cmp al, 'b'
+    je .exit_menu
+    
+    ; Check for 'F' or 'f' for FINISH
+    cmp al, 'F'
+    je .finish_menu
+    cmp al, 'f'
+    je .finish_menu
 
     jmp .wait_input 
 
@@ -348,6 +409,14 @@ do_config:
     call puts
     jmp clear_and_repeat
 
+.finish_menu:
+    call clear_screen
+    mov si, msg_welcome
+    call puts
+    mov si, msg_finish_msg
+    call puts
+    jmp clear_and_repeat
+
 clear_and_repeat:
     mov di, cmd_buffer
     mov cx, 16
@@ -364,6 +433,7 @@ print_logo:
     call puts
     ret
 
+; Regular puts with newline
 puts:
     push si
     push ax
@@ -373,7 +443,29 @@ puts:
     jz .done
     call putc 
     jmp .loop
+
+
+
 .done:
+    mov al, 0x0D    ; Carriage return
+    call putc
+    mov al, 0x0A    ; Line feed
+    call putc
+    pop ax
+    pop si 
+    ret
+
+; puts without newline (for buttons on same line)
+puts_no_newline:
+    push si
+    push ax
+.loop_nl:
+    lodsb
+    or al, al
+    jz .done_nl
+    call putc 
+    jmp .loop_nl
+.done_nl:
     pop ax
     pop si 
     ret
@@ -458,9 +550,46 @@ strcmp_insensitive:
     pop si
     ret
 
+
+; Display hardware information
+print_hardware_info:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
+    
+    mov si, msg_hw_header
+    call puts
+    
+    ; Get CPU type
+    ;call get_cpu_info
+    
+    ; Get memory info
+    ;call get_memory_info
+    
+    ; Get video mode info
+    ;call get_video_info
+    
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+
 ; =============================================================================
 ; DATA SEGMENT
 ; =============================================================================
+
+msg_hw_header:     db '--- HARDWARE INFORMATION ---', ENDL, ENDL, 0
+msg_hello_message: db 'Hello! Welcome to MyCustomOS!', ENDL, 'Have a great day!', ENDL, 0
+
 
 msg_logo:
     db '     *     ', ENDL
@@ -471,13 +600,21 @@ msg_logo:
     db '    ***    ', ENDL
     db '     *     ', ENDL, ENDL, 0
 
-msg_welcome:       db 'MyCustomOS Shell Loaded!', ENDL, 0
+msg_welcome:       db 'hello-OS Shell Loaded!', ENDL, 0
 msg_prompt:        db 'Console> ', 0
 msg_newline:       db ENDL, 0
 msg_unknown:       db 'Invalid syntax.', ENDL, 0
-msg_help_text:     db 'Commands: CLS, HELP, REBOOT, CONFIG', ENDL, 0
+msg_help_header:   db 'Available Commands:', ENDL, 0
+msg_help_list:     
+    db '  CLS     - Clear the screen', ENDL, 
+    db '  HELP    - Show this help message', ENDL, 
+    db '  REBOOT  - Restart the system', ENDL, 
+    db '  CONFIG  - Open system settings menu', ENDL, 
+    db '  CPU     - Show hardware information', ENDL, 
+    ;db '  COOL     - Show Cool', ENDL, 
+    db 0
 
-msg_menu_header:        db '--- SYSTEM SETTINGS ---', ENDL, 'Use Up/Down. Space=Toggle, Esc=Exit', ENDL, ENDL, 0
+msg_menu_header:        db '--- SYSTEM SETTINGS ---', ENDL, 'Use Up/Down. Space=Toggle, B=Back, F=Finish', ENDL, ENDL, 0
 
 msg_menu_kb_en:         db '  Layout: [ English ]', ENDL, 0
 msg_menu_kb_de:         db '  Layout: [ German ]', ENDL, 0
@@ -500,10 +637,21 @@ msg_menu_act_sz_small:  db '> Size:   [ Small ] <', ENDL, 0
 msg_menu_act_sz_medium: db '> Size:   [ Medium ] <', ENDL, 0
 msg_menu_act_sz_large:  db '> Size:   [ Large ] <', ENDL, 0
 
+
+
+; Individual button strings without newline
+msg_back_btn:           db '[ B ] Back', 0
+msg_finish_btn:         db '[ F ] Finish', 0
+msg_spacer:             db ENDL, 0
+msg_finish_msg:         db 'Settings saved!', ENDL, 0
+
+
 cmd_help:          db 'help', 0
 cmd_cls:           db 'cls', 0
 cmd_reboot:        db 'reboot', 0
 cmd_config:        db 'config', 0
+
+
 
 ; Status-Variablen im RAM
 menu_index:        db 0
@@ -513,3 +661,9 @@ vga_mode:          db 0x01
 font_size_flag:    db 0
 temp_shift:        db 0
 cmd_buffer:        times 16 db 0
+
+
+; =============================================================================
+; SECTION 4: DISK PADDING (NOT loaded into RAM)
+; =============================================================================
+
