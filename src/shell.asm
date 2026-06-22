@@ -50,7 +50,7 @@ input_loop:
     cmp ah, 0x27    ; Physical ';' -> 'Ö'
     je .map_oe
     cmp ah, 0x28    ; Physical "'" -> 'Ä'
-    je .handle_ae
+    je .map_ae
     cmp ah, 0x2B    ; Physical '\' -> '#' / '\''
     je .map_hash
     cmp ah, 0x35    ; Physical '/' -> '-' / '_'
@@ -87,7 +87,7 @@ input_loop:
 .map_oe:
     mov al, 0x94    
     jmp .process_key
-.handle_ae:
+.map_ae:
     mov al, 0x84    
     jmp .process_key
 .map_hash:
@@ -208,6 +208,7 @@ clear_and_repeat:
 ; SERVICE FUNCTIONS
 ; =============================================================================
 
+; Prints a null-terminated string from SI in Light Blue color
 puts:
     push si
     push ax
@@ -215,9 +216,12 @@ puts:
     lodsb
     or al, al
     jz .done
-    mov ah, 0x0e
-    mov bh, 0
+    
+    mov ah, 0x0e    ; BIOS teletype
+    mov bh, 0       ; Page 0
+    mov bl, 0x09    ; Color: 0x09 = Light Blue text on Black background
     int 0x10
+    
     jmp .loop
 .done:
     pop ax
@@ -229,15 +233,40 @@ getc:
     int 0x16        
     ret
 
+; Prints a single character in AL with Light Blue color attributes
 putc:
-    mov ah, 0x0E
-    mov bh, 0
+    push bx
+    mov ah, 0x0E    ; BIOS teletype output function
+    mov bh, 0       ; Active display page 0
+    mov bl, 0x09    ; Color byte: 0x09 = Light Blue text on Black background
     int 0x10
+    pop bx
     ret
 
+; Clears the screen and sets the grid to 40x25 (Large Text Mode)
+; Forcefully clears the screen and paints the entire background grid
 clear_screen:
-    mov ax, 0x0003  
+    push ax
+    push bx
+    push cx
+    push dx
+
+    ; Step A: Set the screen resolution to 40x25 (Large Text Mode)
+    mov ax, 0x0001  
     int 0x10
+
+    ; Step B: Scroll the window to paint the default color attributes
+    mov ah, 0x06    ; BIOS Scroll Up function (Clears screen when AL=0)
+    mov al, 0       ; Clear full window screen
+    mov bh, 0x09    ; Colors: 0 = Black Background, 9 = Light Blue Text
+    mov cx, 0x0000  ; Top-left corner (Row 0, Col 0)
+    mov dx, 0x1928  ; Bottom-right corner (Row 25, Col 40)
+    int 0x10
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     ret
 
 strcmp_insensitive:
@@ -280,14 +309,14 @@ strcmp_insensitive:
 ; DATA SEGMENT
 ; =============================================================================
 
-msg_welcome:       db 'MyCustomOS Two-Stage Shell Loaded Successfully!', ENDL, 0
-msg_prompt:        db 'OS_Console> ', 0
+msg_welcome:       db 'MyCustomOS Shell!', ENDL, 0
+msg_prompt:        db 'Console> ', 0
 msg_newline:       db ENDL, 0
-msg_unknown:       db 'Error: Invalid Command syntax.', ENDL, 0
-msg_help_text:     db 'Available commands: CLS, HELP, REBOOT, CONFIG', ENDL, 0
-msg_config_prompt: db 'Select Keyboard Layout (1 = English US, 2 = German DE): ', 0
-msg_config_en:     db 'Success: Switched to English US mapping.', ENDL, 0
-msg_config_de:     db 'Success: Switched to German QWERTZ mapping.', ENDL, 0
+msg_unknown:       db 'Invalid syntax.', ENDL, 0
+msg_help_text:     db 'Commands: CLS, HELP, REBOOT, CONFIG', ENDL, 0
+msg_config_prompt: db 'Layout (1=EN, 2=DE): ', 0
+msg_config_en:     db 'Switched to EN.', ENDL, 0
+msg_config_de:     db 'Switched to DE.', ENDL, 0
 
 cmd_help:          db 'help', 0
 cmd_cls:           db 'cls', 0
