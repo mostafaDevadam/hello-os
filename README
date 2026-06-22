@@ -34,3 +34,6 @@ after updated asm-shell
 make clean && make
 
 qemu-system-x86_64 -fda build/os_disk.img
+
+or inline
+make clean && make && qemu-system-x86_64 -fda build/os_disk.img

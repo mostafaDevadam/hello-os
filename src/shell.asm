@@ -1,15 +1,16 @@
-org 0x0000          ; Loaded at segment 0x1000, offset 0x0000
+org 0x0000          ; Geladen bei Segment 0x1000, Offset 0x0000
 bits 16
 
 %define ENDL 0x0D, 0x0A
 
 main:
-    ; Fix segment registers to point to the new execution space
+    ; Segmentregister auf den Ausführungsbereich einstellen
     mov ax, 0x1000
     mov ds, ax
     mov es, ax
 
     call clear_screen
+    call print_logo      
     mov si, msg_welcome
     call puts
 
@@ -21,12 +22,12 @@ shell_loop:
 input_loop:
     call getc       
 
-    ; Check if we should use the German Translation Layer
+    ; Prüfen, ob das deutsche Layout aktiv ist
     mov byte [temp_shift], 0
     cmp byte [kb_layout], 1
     jne .process_key   
 
-    ; === GERMAN KEYBOARD TRANSLATION LAYER ===
+    ; === DEUTSCHES TASTATUR-LAYOUT MAPPING ===
     push ds
     push bx
     mov bx, 0x40
@@ -37,23 +38,23 @@ input_loop:
     pop ds          
     mov [temp_shift], bl 
 
-    cmp ah, 0x15    ; Physical 'Y' -> 'Z'
+    cmp ah, 0x15    ; Physikalisch 'Y' -> 'Z'
     je .map_z
-    cmp ah, 0x2C    ; Physical 'Z' -> 'Y'
+    cmp ah, 0x2C    ; Physikalisch 'Z' -> 'Y'
     je .map_y
-    cmp ah, 0x0C    ; Physical '-' -> 'ß' / '?'
+    cmp ah, 0x0C    ; Physikalisch '-' -> 'ß' / '?'
     je .map_sz
-    cmp ah, 0x1A    ; Physical '[' -> 'Ü'
+    cmp ah, 0x1A    ; Physikalisch '[' -> 'Ü'
     je .map_ue
-    cmp ah, 0x1B    ; Physical ']' -> '+' / '*'
+    cmp ah, 0x1B    ; Physikalisch ']' -> '+' / '*'
     je .map_plus
-    cmp ah, 0x27    ; Physical ';' -> 'Ö'
+    cmp ah, 0x27    ; Physikalisch ';' -> 'Ö'
     je .map_oe
-    cmp ah, 0x28    ; Physical "'" -> 'Ä'
-    je .map_ae
-    cmp ah, 0x2B    ; Physical '\' -> '#' / '\''
+    cmp ah, 0x28    ; Physikalisch "'" -> 'Ä'
+    je .handle_ae
+    cmp ah, 0x2B    ; Physikalisch '\' -> '#' / '\''
     je .map_hash
-    cmp ah, 0x35    ; Physical '/' -> '-' / '_'
+    cmp ah, 0x35    ; Physikalisch '/' -> '-' / '_'
     je .map_minus
     jmp .process_key
 
@@ -87,7 +88,7 @@ input_loop:
 .map_oe:
     mov al, 0x94    
     jmp .process_key
-.map_ae:
+.handle_ae:
     mov al, 0x84    
     jmp .process_key
 .map_hash:
@@ -176,24 +177,174 @@ do_cls:
 do_reboot:
     jmp 0xFFFF:0000  
 
+; =============================================================================
+; INTERAKTIVES REVOLVIERENDES CONFIG MENU
+; =============================================================================
 do_config:
-    mov si, msg_config_prompt
+    mov byte [menu_index], 0    
+
+.render_menu:
+    call clear_screen
+    mov si, msg_menu_header
     call puts
-.wait_choice:
-    call getc
-    cmp al, '1'
-    je .set_en
-    cmp al, '2'
-    je .set_de
-    jmp .wait_choice
-.set_en:
-    mov byte [kb_layout], 0
-    mov si, msg_config_en
+
+    ; --- Eintrag 0: Tastaturlayout ---
+    cmp byte [menu_index], 0
+    je .active_0
+    mov si, msg_menu_kb_en
+    cmp byte [kb_layout], 0
+    je .print_0
+    mov si, msg_menu_kb_de
+.print_0:
     call puts
-    jmp clear_and_repeat
-.set_de:
-    mov byte [kb_layout], 1
-    mov si, msg_config_de
+    jmp .render_1
+.active_0:
+    mov si, msg_menu_active_kb_en
+    cmp byte [kb_layout], 0
+    je .print_act_0
+    mov si, msg_menu_active_kb_de
+.print_act_0:
+    call puts
+
+.render_1:
+    ; --- Eintrag 1: Farbauswahl ---
+    cmp byte [menu_index], 1
+    je .active_1
+    mov si, msg_menu_col_blue
+    cmp byte [text_color], 0x09
+    je .print_1
+    mov si, msg_menu_col_green
+    cmp byte [text_color], 0x0A
+    je .print_1
+    mov si, msg_menu_col_red
+    cmp byte [text_color], 0x0C
+    je .print_1
+    mov si, msg_menu_col_white
+.print_1:
+    call puts
+    jmp .render_2
+.active_1:
+    mov si, msg_menu_act_col_blue
+    cmp byte [text_color], 0x09
+    je .print_act_1
+    mov si, msg_menu_act_col_green
+    cmp byte [text_color], 0x0A
+    je .print_act_1
+    mov si, msg_menu_act_col_red
+    cmp byte [text_color], 0x0C
+    je .print_act_1
+    mov si, msg_menu_act_col_white
+.print_act_1:
+    call puts
+
+.render_2:
+    ; --- Eintrag 2: Schriftgröße ---
+    cmp byte [menu_index], 2
+    je .active_2
+    mov si, msg_menu_sz_small
+    cmp byte [font_size_flag], 1
+    je .print_2
+    mov si, msg_menu_sz_large
+    cmp byte [vga_mode], 0x01
+    je .print_2
+    mov si, msg_menu_sz_medium
+.print_2:
+    call puts
+    jmp .wait_input
+.active_2:
+    mov si, msg_menu_act_sz_small
+    cmp byte [font_size_flag], 1
+    je .print_act_2
+    mov si, msg_menu_act_sz_large
+    cmp byte [vga_mode], 0x01
+    je .print_act_2
+    mov si, msg_menu_act_sz_medium
+.print_act_2:
+    call puts
+
+.wait_input:
+    call getc       
+
+    cmp al, 0x1B    ; ESC gedrückt?
+    je .exit_menu
+
+    cmp al, 0x20    ; LEERTASTE gedrückt?
+    je .toggle_setting
+
+    cmp ah, 0x48    ; PFEILTASTE HOCH?
+    je .move_up
+
+    cmp ah, 0x50    ; PFEILTASTE RUNTER?
+    je .move_down
+
+    jmp .wait_input 
+
+.move_up:
+    dec byte [menu_index]
+    cmp byte [menu_index], 255  
+    jne .render_menu
+    mov byte [menu_index], 2    
+    jmp .render_menu
+
+.move_down:
+    inc byte [menu_index]
+    cmp byte [menu_index], 3    
+    jne .render_menu
+    mov byte [menu_index], 0    
+    jmp .render_menu
+
+.toggle_setting:
+    cmp byte [menu_index], 0
+    je .toggle_kb
+    cmp byte [menu_index], 1
+    je .toggle_color
+    cmp byte [menu_index], 2
+    je .toggle_size
+    jmp .render_menu
+
+.toggle_kb:
+    xor byte [kb_layout], 1     
+    jmp .render_menu
+
+.toggle_color:
+    cmp byte [text_color], 0x09 
+    je .set_g
+    cmp byte [text_color], 0x0A 
+    je .set_r
+    cmp byte [text_color], 0x0C 
+    je .set_w
+    mov byte [text_color], 0x09 
+    jmp .render_menu
+.set_g: 
+    mov byte [text_color], 0x0A 
+    jmp .render_menu
+.set_r: 
+    mov byte [text_color], 0x0C 
+    jmp .render_menu
+.set_w: 
+    mov byte [text_color], 0x0F 
+    jmp .render_menu
+
+.toggle_size:
+    cmp byte [font_size_flag], 1
+    je .to_medium
+    cmp byte [vga_mode], 0x03
+    je .to_large
+    mov byte [vga_mode], 0x03
+    mov byte [font_size_flag], 1
+    jmp .render_menu
+.to_medium:
+    mov byte [vga_mode], 0x03
+    mov byte [font_size_flag], 0
+    jmp .render_menu
+.to_large:
+    mov byte [vga_mode], 0x01
+    mov byte [font_size_flag], 0
+    jmp .render_menu
+
+.exit_menu:
+    call clear_screen            
+    mov si, msg_welcome
     call puts
     jmp clear_and_repeat
 
@@ -208,7 +359,11 @@ clear_and_repeat:
 ; SERVICE FUNCTIONS
 ; =============================================================================
 
-; Prints a null-terminated string from SI in Light Blue color
+print_logo:
+    mov si, msg_logo
+    call puts
+    ret
+
 puts:
     push si
     push ax
@@ -216,12 +371,7 @@ puts:
     lodsb
     or al, al
     jz .done
-    
-    mov ah, 0x0e    ; BIOS teletype
-    mov bh, 0       ; Page 0
-    mov bl, 0x09    ; Color: 0x09 = Light Blue text on Black background
-    int 0x10
-    
+    call putc 
     jmp .loop
 .done:
     pop ax
@@ -233,34 +383,37 @@ getc:
     int 0x16        
     ret
 
-; Prints a single character in AL with Light Blue color attributes
 putc:
     push bx
-    mov ah, 0x0E    ; BIOS teletype output function
-    mov bh, 0       ; Active display page 0
-    mov bl, 0x09    ; Color byte: 0x09 = Light Blue text on Black background
+    mov ah, 0x0E         
+    mov bh, 0            
+    mov bl, [text_color] 
     int 0x10
     pop bx
     ret
 
-; Clears the screen and sets the grid to 40x25 (Large Text Mode)
-; Forcefully clears the screen and paints the entire background grid
 clear_screen:
     push ax
     push bx
     push cx
     push dx
 
-    ; Step A: Set the screen resolution to 40x25 (Large Text Mode)
-    mov ax, 0x0001  
+    mov ah, 0x00
+    mov al, [vga_mode]   
     int 0x10
 
-    ; Step B: Scroll the window to paint the default color attributes
-    mov ah, 0x06    ; BIOS Scroll Up function (Clears screen when AL=0)
-    mov al, 0       ; Clear full window screen
-    mov bh, 0x09    ; Colors: 0 = Black Background, 9 = Light Blue Text
-    mov cx, 0x0000  ; Top-left corner (Row 0, Col 0)
-    mov dx, 0x1928  ; Bottom-right corner (Row 25, Col 40)
+    cmp byte [font_size_flag], 1
+    jne .skip_font_load
+    mov ax, 0x1112       
+    mov bl, 0x00         
+    int 0x10
+.skip_font_load:
+
+    mov ah, 0x06         
+    mov al, 0            
+    mov bh, [text_color] 
+    mov cx, 0x0000       
+    mov dx, 0x3250       
     int 0x10
 
     pop dx
@@ -309,20 +462,54 @@ strcmp_insensitive:
 ; DATA SEGMENT
 ; =============================================================================
 
-msg_welcome:       db 'MyCustomOS Shell!', ENDL, 0
+msg_logo:
+    db '     *     ', ENDL
+    db '    ***    ', ENDL
+    db '   *****   ', ENDL
+    db ' ********* ', ENDL
+    db '   *****   ', ENDL
+    db '    ***    ', ENDL
+    db '     *     ', ENDL, ENDL, 0
+
+msg_welcome:       db 'MyCustomOS Shell Loaded!', ENDL, 0
 msg_prompt:        db 'Console> ', 0
 msg_newline:       db ENDL, 0
 msg_unknown:       db 'Invalid syntax.', ENDL, 0
 msg_help_text:     db 'Commands: CLS, HELP, REBOOT, CONFIG', ENDL, 0
-msg_config_prompt: db 'Layout (1=EN, 2=DE): ', 0
-msg_config_en:     db 'Switched to EN.', ENDL, 0
-msg_config_de:     db 'Switched to DE.', ENDL, 0
+
+msg_menu_header:        db '--- SYSTEM SETTINGS ---', ENDL, 'Use Up/Down. Space=Toggle, Esc=Exit', ENDL, ENDL, 0
+
+msg_menu_kb_en:         db '  Layout: [ English ]', ENDL, 0
+msg_menu_kb_de:         db '  Layout: [ German ]', ENDL, 0
+msg_menu_active_kb_en:  db '> Layout: [ English ] <', ENDL, 0
+msg_menu_active_kb_de:  db '> Layout: [ German ] <', ENDL, 0
+
+msg_menu_col_blue:      db '  Color:  [ Blue ]', ENDL, 0
+msg_menu_col_green:     db '  Color:  [ Green ]', ENDL, 0
+msg_menu_col_red:       db '  Color:  [ Red ]', ENDL, 0
+msg_menu_col_white:     db '  Color:  [ White ]', ENDL, 0
+
+msg_menu_act_col_blue:  db '> Color:  [ Blue ] <', ENDL, 0
+msg_menu_act_col_green: db '> Color:  [ Green ] <', ENDL, 0
+msg_menu_act_col_red:   db '> Color:  [ Red ] <', ENDL, 0
+msg_menu_act_col_white: db '> Color:  [ White ] <', ENDL, 0
+msg_menu_sz_small:      db '  Size:   [ Small ]', ENDL, 0
+msg_menu_sz_medium:     db '  Size:   [ Medium ]', ENDL, 0
+msg_menu_sz_large:      db '  Size:   [ Large ]', ENDL, 0
+msg_menu_act_sz_small:  db '> Size:   [ Small ] <', ENDL, 0
+msg_menu_act_sz_medium: db '> Size:   [ Medium ] <', ENDL, 0
+msg_menu_act_sz_large:  db '> Size:   [ Large ] <', ENDL, 0
 
 cmd_help:          db 'help', 0
 cmd_cls:           db 'cls', 0
 cmd_reboot:        db 'reboot', 0
 cmd_config:        db 'config', 0
 
-kb_layout:         db 0   
-temp_shift:        db 0   
-cmd_buffer:        times 16 db 0  
+; Status-Variablen im RAM
+menu_index:        db 0
+kb_layout:         db 0
+text_color:        db 0x09
+vga_mode:          db 0x01
+font_size_flag:    db 0
+temp_shift:        db 0
+cmd_buffer:        times 16 db 0
