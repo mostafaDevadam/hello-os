@@ -1,0 +1,15 @@
+
+
+create build folder
+
+install packages
+
+sudo apt install make asm qemu-system-x86_64 
+
+# In Terminal
+
+# build
+make
+
+# run
+qemu-system-x86_64 -fda build/main_floppy.img
