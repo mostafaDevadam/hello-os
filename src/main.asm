@@ -115,12 +115,44 @@ main:
           ;mov si, buffer
           ;call puts
 
-          mov si, msg_cmd
-          call puts
+
+          
+
+          
+
+
 
           mov si, buffer
           mov di, cmd_user
 
+     mov si, msg_line
+     call puts
+
+
+     .read_cmd:
+              mov si, msg_cmd
+              call puts
+
+
+     ; .done_cmd_input
+     ; .read_cmd2
+     ; .done_cmd2
+     ; .compare_cmd
+     ; .cmd_ok
+     ; .cmd_not_ok
+
+
+     ; .ask_username
+     ; .read_user
+     ; .done_user
+     ; .compare_user
+     ; .user_ok
+     ; .user_not_ok
+     
+     ; newline
+
+
+     
 
 
           
@@ -135,10 +167,10 @@ main:
              mov bl, [di]
 
              cmp al, bl
-             jne .not_ok
+             ;jne .not_ok
 
              cmp al, 0
-             je .ok
+             ;je .ok
 
              inc si
              inc di
@@ -179,8 +211,20 @@ msg_saved db ENDL,'Data saved in buffer', ENDL, 0
 msg_ok db ENDL, 'Command OK: ', 0
 msg_err db ENDL, 'Unknown command', 0 
 msg_cmd db ENDL, 'Type CMD (user):', 0
+msg_line db ENDL, '-------------', ENDL, 0
+
+msg_cmd_ok db ENDL, 'Command OK', 0
+msg_cmd_err db ENDL, 'Unknown command', 0 
+
+
+
+
 
 cmd_user db 'user', 0
+
+
+cmd_input: times 16 db 0
+cmd_len db 0
 
 buffer: times 16 db 0
 
