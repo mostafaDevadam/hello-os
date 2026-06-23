@@ -43,11 +43,35 @@ main:
      mov si, msg_hello
      call puts
 
+     mov si, msg_hallo
+     call puts
+
+     ; type something
+      mov si, msg_prompt
+      call puts
+
+     .wait:
+         mov ah, 0
+         int 16h
+         cmp al, 0Dh
+         je .done
+         mov ah, 0Eh
+         int 10h
+         jmp .wait
+
+     .done:
+         mov si, msg_bye
+         call puts
+         mov si, msg_prompt_username
+         call puts
+
+         
+
      mov si, msg_prompt_username
      call puts
      
 
-      ; Read username
+      ; add username
      .read:
          mov si, buffer
          mov ah, 0
@@ -185,7 +209,7 @@ main:
       jmp .halt
 
 
-msg_hello: db 'Hello world!', ENDL, 0
+msg_hello: db ENDL, 'Hello world!', ENDL, 0
 msg_hallo: db 'Hallo', ENDL, 0
 msg_bye db ENDL, 'Bye', 0
 msg_prompt db ENDL, 'Type something and press Enter:', ENDL, 0
