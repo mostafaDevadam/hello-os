@@ -1,12 +1,30 @@
 ASM=nasm
 
-SRC_DIR=src
-BUILD_DIR=build
+ASMFLAGS = -f bin
+SRC = src
+BUILD = build
 
-$(BUILD_DIR)/main_floppy.img: $(BUILD_DIR)/main.bin
-	cp $(BUILD_DIR)/main.bin $(BUILD_DIR)/main_floppy.img
-	truncate -s 1440k $(BUILD_DIR)/main_floppy.img
+all: $(BUILD)/final.bin
 
-$(BUILD_DIR)/main.bin: $(SRC_DIR)/main.asm
-	$(ASM) $(SRC_DIR)/main.asm -f bin -o $(BUILD_DIR)/main.bin
+$(BUILD)/boot.bin: $(SRC)/boot.asm
+	mkdir -p $(BUILD)
+	$(ASM) $(ASMFLAGS) $< -o $@
+	@echo "Boot.bin: $$(stat -c%s $@) bytes"
 
+$(BUILD)/main.bin: $(SRC)/main.asm
+	mkdir -p $(BUILD)
+	$(ASM) $(ASMFLAGS) $< -o $@
+	@echo "Main.bin: $$(stat -c%s $@) bytes"
+
+$(BUILD)/final.bin: $(BUILD)/boot.bin $(BUILD)/main.bin
+	cat $^ > $@
+	@echo "Final.bin: $$(stat -c%s $@) bytes"
+	@echo "Build complete!"
+
+run: all
+	qemu-system-x86_64 -fda $(BUILD)/final.bin
+
+clean:
+	rm -rf $(BUILD)
+
+.PHONY: all run clean
