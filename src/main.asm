@@ -10,6 +10,7 @@ start:
 
 puts:
     push si
+    push di
     push ax
 
 .loop:
@@ -25,6 +26,7 @@ puts:
 
 
 .done:
+     pop di
      pop ax
      pop si 
      ret
@@ -61,8 +63,6 @@ main:
 
      .done:
          mov si, msg_bye
-         call puts
-         mov si, msg_prompt_username
          call puts
 
          
@@ -166,17 +166,123 @@ main:
          je .done_user_name
          mov [si], al
          inc si
+         
+         ;mov [id], al
+         ;inc di
+
          mov ah, 0x0E
          mov bh, 0
          int 10h
+         
          jmp .wait_user_name
 
      .done_user_name:
          mov byte [si], 0
+         ;mov byte [di], 0
+
          mov si, msg_line
+         
          call puts
+         
          mov si, buffer_username_input
          call puts
+         ; Compare  with "username"
+         mov si, buffer_username_input
+         mov di, buffer
+
+     mov si, msg_line
+     call puts
+
+     mov si, msg_wait_name
+     call puts
+
+     .wait_name:
+         mov ah, 00h
+         int 16h
+         cmp al, 0Dh
+         je .done_name
+
+         mov [si], al
+         inc si
+         
+
+         mov ah, 0x0E
+         mov bh, 0
+         int 10h
+         
+
+         jmp .wait_name
+
+     .done_name:
+         mov byte [si], 0
+         mov si, buffer_username_input
+         call puts
+         mov di, buffer
+
+
+
+     mov si, msg_wait_buffer
+     call puts
+
+     .wait_buffer:
+             mov di, buffer
+             mov si, msg_wait_buffer
+             call puts
+
+              mov ah, 00h
+              int 16h
+
+              cmp al, 0Dh
+              je .done_buffer
+             
+              mov [di], al
+              inc di
+
+              mov ah, 0x0E
+              mov bh, 0
+              int 10h
+
+              
+
+              jmp .wait_buffer
+
+     .done_buffer:
+              mov byte [di], 0
+              mov si, buffer
+              call puts
+
+    
+
+     mov si, msg_line
+     call puts
+
+     .compare_username_loop:
+         mov al, [si]
+         mov bl, [di]
+         cmp al, bl
+         jne .not_equal_u
+         cmp al, 0
+         je .equal_u
+         inc si
+         inc di
+         jmp .compare_username_loop
+
+     .equal_u:
+         mov si, msg_match
+         call puts
+         jmp .continue_u
+
+     .not_equal_u:
+         mov si, msg_no_match
+         call puts
+
+     .continue_u:
+         mov si, msg_continue
+         call puts
+         mov si, msg_line
+         call puts
+
+
 
 
          
@@ -220,6 +326,8 @@ msg_err db ENDL, 'Unknown command', 0
 msg_cmd db ENDL, 'Type CMD (user):', 0
 msg_debug db 'Buffer contains: ', 0
 msg_newline db 13, 10, 0
+msg_wait_name db ENDL, "...wait_name...", ENDL, 0
+msg_wait_buffer db ENDL, "...wait_buffer...", ENDL, 0
 
 msg_line db ENDL, '-------------', ENDL, 0
 
@@ -227,8 +335,8 @@ msg_line db ENDL, '-------------', ENDL, 0
 ;msg_cmd_err db ENDL, 'Unknown command', 0 
 
 msg_match db ENDL,'Match found!', 13, 10, 0
-msg_no_match db 'No match!', 13, 10, 0
-msg_continue db 'you can continue!', 13, 10, 0
+msg_no_match db ENDL,'No match!', 13, 10, 0
+msg_continue db ENDL,'you can continue!', 13, 10, 0
 
 
 
