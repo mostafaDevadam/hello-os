@@ -22,3 +22,8 @@ make
 qemu-system-x86_64 -fda build/main_floppy.img
 
 rm ./build/main.bin ./build/main_floppy.img & make & qemu-system-x86_64 -fda build/main_floppy.img
+
+# new commands
+make clean
+make all
+make run
