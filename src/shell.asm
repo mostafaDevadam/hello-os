@@ -471,7 +471,7 @@ msg_logo:
     db '    ***    ', ENDL
     db '     *     ', ENDL, ENDL, 0
 
-msg_welcome:       db 'MyCustomOS Shell Loaded!', ENDL, 0
+msg_welcome:       db 'hello-OS Shell Loaded!', ENDL, 0
 msg_prompt:        db 'Console> ', 0
 msg_newline:       db ENDL, 0
 msg_unknown:       db 'Invalid syntax.', ENDL, 0
